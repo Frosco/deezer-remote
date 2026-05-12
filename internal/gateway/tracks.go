@@ -37,3 +37,62 @@ func (c *Client) GetUserData(ctx context.Context) (*UserData, error) {
 		LicenseToken: ud.User.Options.LicenseToken,
 	}, nil
 }
+
+// flexString decodes a JSON field that gw-light returns sometimes as a
+// quoted string and sometimes as a bare number.
+type flexString string
+
+func (f *flexString) UnmarshalJSON(b []byte) error {
+	if len(b) > 0 && b[0] == '"' {
+		var s string
+		if err := json.Unmarshal(b, &s); err != nil {
+			return err
+		}
+		*f = flexString(s)
+		return nil
+	}
+	*f = flexString(string(b))
+	return nil
+}
+
+// TrackData is the subset of song.getData we expose.
+type TrackData struct {
+	SngID        string
+	TrackToken   string
+	MD5Origin    string
+	MediaVersion string
+	Title        string
+	Artist       string
+}
+
+type songGetDataEnvelope struct {
+	SngID        flexString `json:"SNG_ID"`
+	TrackToken   string     `json:"TRACK_TOKEN"`
+	MD5Origin    string     `json:"MD5_ORIGIN"`
+	MediaVersion flexString `json:"MEDIA_VERSION"`
+	Title        string     `json:"SNG_TITLE"`
+	Artist       string     `json:"ART_NAME"`
+}
+
+// SongGetData fetches metadata for one track via gw-light song.getData.
+func (c *Client) SongGetData(ctx context.Context, trackID string) (*TrackData, error) {
+	raw, err := c.callWithCSRF(ctx, "song.getData", map[string]any{"SNG_ID": trackID})
+	if err != nil {
+		return nil, err
+	}
+	var env songGetDataEnvelope
+	if err := json.Unmarshal(raw, &env); err != nil {
+		return nil, err
+	}
+	if env.SngID == "" {
+		return nil, ErrNotFound
+	}
+	return &TrackData{
+		SngID:        string(env.SngID),
+		TrackToken:   env.TrackToken,
+		MD5Origin:    env.MD5Origin,
+		MediaVersion: string(env.MediaVersion),
+		Title:        env.Title,
+		Artist:       env.Artist,
+	}, nil
+}
