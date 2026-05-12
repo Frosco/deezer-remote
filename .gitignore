@@ -1,0 +1,24 @@
+# Go artifacts
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+/dist/
+/bin/
+
+# Spike outputs
+*.mp3
+*.enc
+*.mp3.partial
+spike-findings-*.txt
+
+# Editor
+.idea/
+.vscode/
+*.swp
+
+# Repo-specific overrides
+!CLAUDE.md
+!docs/solutions
