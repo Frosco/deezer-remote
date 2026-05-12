@@ -46,14 +46,14 @@ func NewClient(rt http.RoundTripper) *Client {
 }
 
 type urlReqWire struct {
-	LicenseToken string         `json:"license_token"`
-	TrackTokens  []string       `json:"track_tokens"`
-	Media        []mediaSpec    `json:"media"`
+	LicenseToken string      `json:"license_token"`
+	TrackTokens  []string    `json:"track_tokens"`
+	Media        []mediaSpec `json:"media"`
 }
 
 type mediaSpec struct {
-	Type    string          `json:"type"`
-	Formats []formatSpec    `json:"formats"`
+	Type    string       `json:"type"`
+	Formats []formatSpec `json:"formats"`
 }
 
 type formatSpec struct {
