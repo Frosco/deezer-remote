@@ -3,6 +3,7 @@ package gateway
 import (
 	"context"
 	"encoding/json"
+	"strconv"
 )
 
 // UserData is the subset of deezer.getUserData we expose.
@@ -57,21 +58,31 @@ func (f *flexString) UnmarshalJSON(b []byte) error {
 
 // TrackData is the subset of song.getData we expose.
 type TrackData struct {
-	SngID        string
-	TrackToken   string
-	MD5Origin    string
-	MediaVersion string
-	Title        string
-	Artist       string
+	SngID           string
+	TrackToken      string
+	MD5Origin       string
+	MediaVersion    string
+	Title           string
+	Artist          string
+	Album           string
+	CoverMD5        string // ALB_PICTURE; build URL via image CDN
+	DurationS       int
+	FileSizeMP3_320 int64
+	FileSizeMP3_128 int64
 }
 
 type songGetDataEnvelope struct {
-	SngID        flexString `json:"SNG_ID"`
-	TrackToken   string     `json:"TRACK_TOKEN"`
-	MD5Origin    string     `json:"MD5_ORIGIN"`
-	MediaVersion flexString `json:"MEDIA_VERSION"`
-	Title        string     `json:"SNG_TITLE"`
-	Artist       string     `json:"ART_NAME"`
+	SngID           flexString `json:"SNG_ID"`
+	TrackToken      string     `json:"TRACK_TOKEN"`
+	MD5Origin       string     `json:"MD5_ORIGIN"`
+	MediaVersion    flexString `json:"MEDIA_VERSION"`
+	Title           string     `json:"SNG_TITLE"`
+	Artist          string     `json:"ART_NAME"`
+	Album           string     `json:"ALB_TITLE"`
+	CoverMD5        string     `json:"ALB_PICTURE"`
+	Duration        flexString `json:"DURATION"`
+	FileSizeMP3_320 flexString `json:"FILESIZE_MP3_320"`
+	FileSizeMP3_128 flexString `json:"FILESIZE_MP3_128"`
 }
 
 // SongGetData fetches metadata for one track via gw-light song.getData.
@@ -88,11 +99,38 @@ func (c *Client) SongGetData(ctx context.Context, trackID string) (*TrackData, e
 		return nil, ErrNotFound
 	}
 	return &TrackData{
-		SngID:        string(env.SngID),
-		TrackToken:   env.TrackToken,
-		MD5Origin:    env.MD5Origin,
-		MediaVersion: string(env.MediaVersion),
-		Title:        env.Title,
-		Artist:       env.Artist,
+		SngID:           string(env.SngID),
+		TrackToken:      env.TrackToken,
+		MD5Origin:       env.MD5Origin,
+		MediaVersion:    string(env.MediaVersion),
+		Title:           env.Title,
+		Artist:          env.Artist,
+		Album:           env.Album,
+		CoverMD5:        env.CoverMD5,
+		DurationS:       atoiOrZero(string(env.Duration)),
+		FileSizeMP3_320: atoi64OrZero(string(env.FileSizeMP3_320)),
+		FileSizeMP3_128: atoi64OrZero(string(env.FileSizeMP3_128)),
 	}, nil
+}
+
+func atoiOrZero(s string) int {
+	if s == "" {
+		return 0
+	}
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		return 0
+	}
+	return n
+}
+
+func atoi64OrZero(s string) int64 {
+	if s == "" {
+		return 0
+	}
+	n, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return 0
+	}
+	return n
 }

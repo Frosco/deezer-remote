@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 	"testing"
 )
 
@@ -80,6 +81,36 @@ func TestSongGetData_FlexStringHandlesBareNumber(t *testing.T) {
 	}
 	if td.SngID != "3135556" {
 		t.Errorf("SngID = %q, want 3135556", td.SngID)
+	}
+}
+
+func TestSongGetData_ReturnsFileSizes(t *testing.T) {
+	rt := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if strings.Contains(req.URL.String(), "method=deezer.getUserData") {
+			return mkResp(200, `{"error":[],"results":{"checkForm":"TOK","USER":{"USER_ID":1,"OPTIONS":{"license_token":"L"}}}}`), nil
+		}
+		body := `{"error":[],"results":{"SNG_ID":"42","TRACK_TOKEN":"TT","MD5_ORIGIN":"abc","MEDIA_VERSION":"4","SNG_TITLE":"T","ART_NAME":"A","FILESIZE_MP3_320":"9059264","FILESIZE_MP3_128":"3623705","DURATION":"226","ALB_TITLE":"Discovery","ALB_PICTURE":"md5pic"}}`
+		return mkResp(200, body), nil
+	})
+	c, _ := newClientWithTransport("ARL", rt)
+	td, err := c.SongGetData(context.Background(), "42")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if td.FileSizeMP3_320 != 9059264 {
+		t.Errorf("FileSizeMP3_320 = %d", td.FileSizeMP3_320)
+	}
+	if td.FileSizeMP3_128 != 3623705 {
+		t.Errorf("FileSizeMP3_128 = %d", td.FileSizeMP3_128)
+	}
+	if td.DurationS != 226 {
+		t.Errorf("DurationS = %d", td.DurationS)
+	}
+	if td.Album != "Discovery" {
+		t.Errorf("Album = %q", td.Album)
+	}
+	if td.CoverMD5 != "md5pic" {
+		t.Errorf("CoverMD5 = %q", td.CoverMD5)
 	}
 }
 
