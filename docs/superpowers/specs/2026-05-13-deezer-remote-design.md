@@ -233,6 +233,25 @@ The spike writes both the encrypted bytes (`<id>.enc`) and the partially-decrypt
 
 Appended to this design doc: "Spike on YYYY-MM-DD, track `<id>`: MP3_320 ✓ / FLAC ? / media URL TTL = X / headers required: Y. Notes: ...". That note unblocks the rest of the design.
 
+### Findings
+
+**Date:** 2026-05-13
+**Track:** `3135556` (Daft Punk — Harder, Better, Faster, Stronger; the plan's caption "Get Lucky" was misattributed)
+
+- **MP3_320 returned:** ✓ — `format=MP3_320`, 9,059,264 bytes, ffprobe confirms 320 kbps / 44.1 kHz / stereo / 226 s. Output starts with MP3 frame sync (`0xFFE0`); plays end-to-end.
+- **MP3_128 returned:** ✓ — `format=MP3_128`, 3,623,705 bytes, ffprobe confirms 128 kbps. Same track, distinct CDN host (`cdnt-stream.dzcdn.net` vs `f-cdnt-stream.dzcdn.net` for 320), distinct URL.
+- **FLAC attempted:** not in spike (deferred).
+- **Media URL TTL:** `exp - now ≈ 71,976 s ≈ 20 h`. Much longer than the design's "minutes" assumption. The `nbf` field in the response shape didn't surface in the live response, only `exp`. Implication: the in-memory `(track_id → URL, expiry)` cache the design hypothesised is safe with a generous safety margin (30 s is overkill; even 30 min is conservative).
+- **Headers required beyond defaults:** none observed. `cookiejar` carrying `arl` + the server-assigned `sid` after the first call is sufficient for gw-light. The CDN GET succeeded with `http.DefaultClient`'s default headers — no `User-Agent` override, no `Origin`, no `Referer`, no auth header.
+- **Region/availability behavior:** not exercised on this track (entitled, playable). The plan's error-handling path for `Data[0].Errors[...]` was wired into `media.GetURL` but only the happy path ran live.
+- **Time from `--track` to `wrote <id>.mp3`:** sub-second end to end for the 320 path (decrypt alone: 584 ms; download dominant). MP3_128 was 306 ms decrypt.
+- **Anomalies observed:**
+  - Track `3135556` is "Harder, Better, Faster, Stronger", not "Get Lucky" as the spike plan's example caption claimed. Cosmetic plan-doc bug; the pipeline itself is correct.
+  - The `media.deezer.com/v1/get_url` response did **not** include `nbf` in the live shape — only `exp`. Our wire decoder ignores fields beyond what it parses, so this is harmless, but a Phase-1 reader of the field should not assume `nbf` is present.
+  - User-agent fingerprint: served from `http.DefaultClient` (Go's default `User-Agent: Go-http-client/1.1`) without rejection. Worth a comment that this may eventually be rate-limited or blocked by Deezer; not observed today.
+
+**Verdict:** **GO** for Phase 1 design. The full pipeline (arl auth → gw-light CSRF → media.getUrl → CDN GET → Blowfish stride decrypt → playable MP3) works on Nils's account at MP3_320, and the 20-hour CDN URL TTL means `/stream/<id>` can comfortably cache URLs across multiple plays. No assumptions invalidated; one assumption (short TTL) is generously loosened.
+
 ## Error handling
 
 | Source | Failure mode | What the user sees |
