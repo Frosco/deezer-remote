@@ -40,6 +40,16 @@ type Client struct {
 	http *http.Client
 }
 
+// URLClient is an alias for Client, kept so callers can be explicit about the
+// role (Client is media-URL-specific despite the generic name).
+type URLClient = Client
+
+// TrackURLAPI is the subset of *Client the resolver needs. Letting callers
+// pass an interface (instead of *Client) keeps tests cheap.
+type TrackURLAPI interface {
+	GetURL(ctx context.Context, req URLRequest) (*URLResult, error)
+}
+
 // NewClient builds a Client with the given transport.
 func NewClient(rt http.RoundTripper) *Client {
 	return &Client{http: &http.Client{Transport: rt}}

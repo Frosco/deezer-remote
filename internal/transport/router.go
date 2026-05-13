@@ -34,6 +34,9 @@ func NewRouter(sess *session.Session, gw GatewayAPI, res Resolver, hub HubSink, 
 	return &CmdRouter{sess: sess, gw: gw, res: res, hub: hub, token: token}
 }
 
+// SetHub replaces the router's hub (used during server bootstrap).
+func (r *CmdRouter) SetHub(h HubSink) { r.hub = h }
+
 // State returns the current state snapshot wrapped in a StateUpdate.
 func (r *CmdRouter) State() any {
 	return StateUpdate{Type: "state", State: r.sess.State()}
