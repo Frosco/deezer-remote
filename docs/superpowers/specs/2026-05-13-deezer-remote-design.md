@@ -98,7 +98,7 @@ JSON, `{"type": "...", ...}`. Authentication via `?t=<token>` on connect; reject
 
 For each request:
 1. Service calls `gateway.SongGetData(track_id)` → `TRACK_TOKEN`, `SNG_ID`.
-2. Service calls `media.GetURL({tokens: [TRACK_TOKEN], license_token, formats: [MP3_320, MP3_128]})` against `https://media.deezer.com/v1/get_url` → CDN URL + size + chosen format. URL has a short TTL (minutes).
+2. Service calls `media.GetURL({tokens: [TRACK_TOKEN], license_token, formats: [MP3_320, MP3_128]})` against `https://media.deezer.com/v1/get_url` → CDN URL + size + chosen format. Spike measured ~20 h TTL; the in-memory cache (see Decisions) reuses entries while `remaining_ttl > 30 min`.
 3. Service issues a Range-aware GET to that CDN URL.
 4. Bytes are decrypted on the fly: Blowfish-CBC on every 6144-th 2048-byte block; passthrough otherwise. Key derived from `md5(SNG_ID)` XOR'd with a known 16-char constant. IV is the fixed `0x0001020304050607`.
 5. Range requests from the browser map to byte ranges in the encrypted file; alignment to 2048-byte blocks handled inside the proxy.
@@ -169,8 +169,8 @@ deezer-remote/
     transport/            HTTP + WebSocket server, role negotiation, fan-out
     web/                  embed.FS for the built SPA bundle
   web/
-    src/                  HTML/CSS/JS source — framework decided after the spike (see Open questions)
-    dist/                 Built static assets, served via embed
+    src/                  Alpine.js view templates + plain JS modules (ws.js, stores.js, commands.js)
+    dist/                 Final static assets, served via embed (no build step; src and dist may be the same in practice)
   docs/
     superpowers/specs/    This document and successors
     idea.md               Original sketch
@@ -263,7 +263,7 @@ Appended to this design doc: "Spike on YYYY-MM-DD, track `<id>`: MP3_320 ✓ / F
 | Network | Phone disconnects | Service doesn't care; player keeps playing. Phone reconnect: state snapshot, catches up. |
 | Protocol | Two browsers try to be player at once | Second one rejected with `error {kind: "role_taken"}`. Resolution in MVP: close the existing player tab and reload the new one — service drops the old WS within the heartbeat timeout. Forced-takeover UX is Phase 2. |
 
-Errors over the wire use the classified-kind pattern: `{kind: "auth_expired"|"not_available"|"rate_limited"|"player_gone"|"region_locked"|"internal", message: "..."}`. UI branches on `kind`, never on `message`.
+Errors over the wire use the classified-kind pattern: `{kind: "auth_expired"|"not_available"|"rate_limited"|"player_gone"|"region_locked"|"queue_exhausted"|"role_taken"|"internal", message: "..."}`. UI branches on `kind`, never on `message`.
 
 ## Testing
 
@@ -292,12 +292,12 @@ Documented per release:
 
 Browser audio playback automation (Playwright + `<audio>` is flaky and slow). FLAC decoding (out of scope). Multi-controller concurrency (one phone in MVP). Windows-specific behaviour is covered by manual smoke on Windows only.
 
-## Open questions / decisions to revisit
+## Decisions (resolved after spike, 2026-05-13)
 
-- **Web UI framework.** Plain HTML+JS, htmx + a sprinkle of JS, Alpine.js, or a small SPA in Svelte / Preact / Vue? Decided when we start the UI work, after the spike. Constraints: must look and feel like the mockup (dark, modern, mobile-friendly), must embed cleanly into `embed.FS`, no Node-toolchain explosion.
-- **Track-token caching.** Should the service cache the `(track_id → CDN URL, expiry)` mapping in memory and reuse within the TTL, or fetch fresh per `/stream/<id>` request? Spike will tell us how short the TTL is. Default plan: cache with 30 s safety margin.
-- **Queue source.** Search results can be a track, an album, or a playlist; tapping any of them sends a single `cmd` to the service that resolves to "play this thing now". For a track → queue is just `[track]`. For an album/playlist → service fetches the contents via `/api/album/<id>` or `/api/playlist/<id>` and seeds the queue. Open: pre-load all track metadata up front, or fetch the next track lazily? Default plan: pre-load on play, since albums/playlists are small (hundreds of tracks at worst).
-- **Auto-advance.** When `playback {ended: true}` arrives from the player tab, the service advances the queue. Edge case: what if the next track is region-locked and `media.getUrl` returns no URL? Skip with toast, advance again. Bound the skip loop (max 5 skips in a row before giving up).
+- **Web UI framework: Alpine.js + plain JS modules.** Alpine drives the view layer via attributes (`x-data`, `x-show`, `x-for`, `@click`). The WebSocket client and reactive state stores live in plain JS modules under `web/src/` (`ws.js`, `stores.js`, `commands.js`) and Alpine reads from them. No Node toolchain; Alpine is loaded as a single `<script>` and assets ship via `embed.FS`. Rationale: declarative reactivity is what the UI needs, embed-friendly, no build pipeline. Migration backstop: if Phase 2 outgrows Alpine (deep routing, long-list virtualization), only the view layer migrates — WS/state modules stay.
+- **Track-token caching: in-memory, 30 min safety margin.** Service maintains a process-local map `track_id → {cdn_url, expiry, format, sng_id, size}`. On `/stream/<id>`, reuse the cached entry if `remaining_ttl > 30 min`; otherwise refetch `media.getUrl`. Evict any entry on `4xx` from the CDN and retry once. Spike confirmed ~20 h TTL, so 30 min is generous headroom. Cache is in-memory only — not persisted across restarts.
+- **Queue source: pre-load metadata, lazy-fetch media URLs.** When a controller plays an album or playlist, the service fetches the full track list metadata up-front via `/api/album/<id>` or `/api/playlist/<id>` and seeds the queue (albums/playlists are bounded; hundreds of tracks at worst). Media URLs are fetched lazily — only for the *current* track and the *next* track (pre-warm on play to keep gapless feel acceptable). Pre-warming further ahead is deferred.
+- **Auto-advance on dead track: skip with toast, bounded at 5.** When `playback {ended: true}` arrives, the service advances the queue. If `media.getUrl` returns no URL (region-locked, removed, tier-locked) the service emits `error {kind: "not_available", message: "<title> — track unavailable"}` and advances again. After **5 consecutive skips** the service pauses the session and emits `error {kind: "queue_exhausted", message: "Couldn't find a playable track in this queue."}`. The skip counter resets on any successful play.
 
 ## Phase 2 candidates (informative, not in MVP)
 
@@ -311,5 +311,5 @@ Browser audio playback automation (Playwright + `<audio>` is flaky and slow). FL
 
 ## TODO (no tracker until the project grows)
 
-- [ ] Spike: implement `cmd/spike/main.go` and write the findings note back into this doc.
-- [ ] After spike: write the implementation plan (writing-plans skill).
+- [x] Spike: implement `cmd/spike/main.go` and write the findings note back into this doc.
+- [ ] Write the Phase 1 implementation plan (writing-plans skill).
