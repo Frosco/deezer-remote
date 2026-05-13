@@ -13,7 +13,8 @@ import (
 
 // Config is the on-disk config shape.
 type Config struct {
-	ARL string `toml:"arl"`
+	ARL         string `toml:"arl"`
+	BearerToken string `toml:"bearer_token"`
 }
 
 // Load reads ~/.config/deezer-remote/config.toml on Linux,
