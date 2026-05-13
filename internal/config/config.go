@@ -30,6 +30,10 @@ func Load() (*Config, error) {
 	return loadFromPath(filepath.Join(base, "deezer-remote", "config.toml"))
 }
 
+// LoadFromPath reads a config file at an explicit path. Used by the pair
+// and doctor subcommands so they can operate on the same file Load uses.
+func LoadFromPath(path string) (*Config, error) { return loadFromPath(path) }
+
 func loadFromPath(path string) (*Config, error) {
 	info, err := os.Stat(path)
 	if err != nil {
