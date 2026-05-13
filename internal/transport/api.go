@@ -95,13 +95,13 @@ func writeJSON(w http.ResponseWriter, v any) {
 func writeGatewayError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, gateway.ErrAuthFailed):
-		http.Error(w, "auth_expired", http.StatusUnauthorized)
+		http.Error(w, ErrKindAuthExpired, http.StatusUnauthorized)
 	case errors.Is(err, gateway.ErrNotFound):
 		http.Error(w, "not_found", http.StatusNotFound)
 	case errors.Is(err, gateway.ErrRateLimited):
-		http.Error(w, "rate_limited", http.StatusTooManyRequests)
+		http.Error(w, ErrKindRateLimited, http.StatusTooManyRequests)
 	default:
-		http.Error(w, "internal: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, ErrKindInternal+": "+err.Error(), http.StatusInternalServerError)
 	}
 }
 
