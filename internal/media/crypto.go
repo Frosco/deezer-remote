@@ -102,6 +102,17 @@ func (d *decryptReader) fillNextBlock() error {
 	}
 }
 
+// newDecryptReaderAtBlock returns a decryptReader whose stride counter starts
+// at the given block index. Used by the range-stream code so the
+// every-3rd-block pattern stays aligned with the underlying file's offsets.
+func newDecryptReaderAtBlock(src io.Reader, key [16]byte, startBlockIdx int) *decryptReader {
+	return &decryptReader{
+		src:      src,
+		key:      key,
+		blockIdx: startBlockIdx,
+	}
+}
+
 // processBlock returns the output bytes for one full input block. If the
 // current block is at an encrypted-stride position, decrypt; else passthrough.
 func (d *decryptReader) processBlock(in []byte, full bool) ([]byte, error) {
