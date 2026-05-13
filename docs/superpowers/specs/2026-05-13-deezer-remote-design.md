@@ -312,4 +312,5 @@ Browser audio playback automation (Playwright + `<audio>` is flaky and slow). FL
 ## TODO (no tracker until the project grows)
 
 - [x] Spike: implement `cmd/spike/main.go` and write the findings note back into this doc.
-- [ ] Write the Phase 1 implementation plan (writing-plans skill).
+- [x] Write the Phase 1 implementation plan (writing-plans skill).
+- [x] Implement Phase 1 (this plan).
