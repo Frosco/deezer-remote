@@ -1,1 +1,119 @@
-<!doctype html><meta charset="utf-8"><title>deezer-remote</title>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>deezer-remote</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css">
+</head>
+<body
+  x-data="appRoot"
+  x-init="$store.session.init(); window.__bootApp($store);"
+  :class="role">
+
+  <!-- PLAYER SHELL (laptop): just an <audio> tag + status -->
+  <main class="player-shell" x-show="role === 'player'">
+    <audio id="audio" preload="auto" x-ref="audio"></audio>
+    <section class="player-card">
+      <i class="ti ti-vinyl player-vinyl" aria-hidden="true"></i>
+      <p class="player-title" x-text="$store.session.current?.title || 'Waiting for a track…'"></p>
+      <p class="player-sub"   x-text="$store.session.current?.artist || ''"></p>
+      <p class="player-hint">Use your phone to control playback.</p>
+    </section>
+  </main>
+
+  <!-- CONTROLLER SHELL (phone): search → results → now-playing -->
+  <main class="controller-shell" x-show="role === 'controller'">
+    <header class="topbar">
+      <span class="topbar-title">deezer-remote</span>
+      <span class="topbar-status" x-text="$store.session.connected ? 'live' : 'reconnecting…'"></span>
+    </header>
+
+    <section class="search">
+      <input
+        type="search"
+        class="search-input"
+        placeholder="Search tracks, albums, playlists…"
+        x-model.debounce.250ms="search.q"
+        @input="search.run()"
+        autocomplete="off"
+        autofocus>
+    </section>
+
+    <section class="results" x-show="search.q">
+      <template x-for="t in search.tracks" :key="t.id">
+        <article class="row track" @click="playTrack(t)">
+          <img class="row-cover" :src="t.cover_url" :alt="t.title" loading="lazy">
+          <div class="row-text">
+            <p class="row-title" x-text="t.title"></p>
+            <p class="row-sub"   x-text="t.artist + ' · ' + t.album"></p>
+          </div>
+          <i class="ti ti-player-play-filled row-cta" aria-hidden="true"></i>
+        </article>
+      </template>
+      <template x-for="a in search.albums" :key="'a' + a.id">
+        <article class="row album" @click="playAlbum(a)">
+          <img class="row-cover" :src="a.cover_url" :alt="a.title" loading="lazy">
+          <div class="row-text">
+            <p class="row-title" x-text="a.title"></p>
+            <p class="row-sub"   x-text="'Album · ' + a.artist + ' · ' + a.track_count + ' tracks'"></p>
+          </div>
+          <i class="ti ti-player-play-filled row-cta" aria-hidden="true"></i>
+        </article>
+      </template>
+      <template x-for="p in search.playlists" :key="'p' + p.id">
+        <article class="row playlist" @click="playPlaylist(p)">
+          <img class="row-cover" :src="p.cover_url" :alt="p.title" loading="lazy">
+          <div class="row-text">
+            <p class="row-title" x-text="p.title"></p>
+            <p class="row-sub"   x-text="'Playlist · ' + p.owner + ' · ' + p.track_count + ' tracks'"></p>
+          </div>
+          <i class="ti ti-player-play-filled row-cta" aria-hidden="true"></i>
+        </article>
+      </template>
+    </section>
+
+    <section class="now-playing" x-show="$store.session.current && !search.q">
+      <img class="np-cover" :src="$store.session.current?.cover_url" :alt="$store.session.current?.title">
+      <p class="np-title" x-text="$store.session.current?.title"></p>
+      <p class="np-sub"   x-text="$store.session.current?.artist + ' · ' + $store.session.current?.album"></p>
+
+      <div class="seek">
+        <div class="seek-bar" @click="seekAtClick($event)">
+          <div class="seek-fill" :style="`width: ${seekPct()}%`"></div>
+          <div class="seek-knob" :style="`left: ${seekPct()}%`"></div>
+        </div>
+        <div class="seek-labels">
+          <span x-text="fmt($store.session.position_ms)"></span>
+          <span x-text="fmt(($store.session.current?.duration_s || 0) * 1000)"></span>
+        </div>
+      </div>
+
+      <div class="transport">
+        <button class="t-skip" @click="cmd('prev')" aria-label="previous"><i class="ti ti-player-skip-back"></i></button>
+        <button class="t-main" @click="togglePlay()" :aria-label="$store.session.paused ? 'play' : 'pause'">
+          <i :class="$store.session.paused ? 'ti ti-player-play-filled' : 'ti ti-player-pause-filled'"></i>
+        </button>
+        <button class="t-skip" @click="cmd('next')" aria-label="next"><i class="ti ti-player-skip-forward"></i></button>
+      </div>
+
+      <div class="volume">
+        <i class="ti ti-volume-3" aria-hidden="true"></i>
+        <input type="range" min="0" max="100" :value="Math.round($store.session.volume * 100)"
+               @input="setVolume($event.target.value / 100)">
+        <i class="ti ti-volume" aria-hidden="true"></i>
+      </div>
+    </section>
+
+    <section class="errors" x-show="$store.ui.errors.length">
+      <template x-for="e in $store.ui.errors" :key="e.id">
+        <div class="toast" :class="'kind-' + e.kind" x-text="e.message"></div>
+      </template>
+    </section>
+  </main>
+
+  <script src="/vendor/alpine.min.js" defer></script>
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

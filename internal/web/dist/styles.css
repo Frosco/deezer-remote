@@ -1,0 +1,92 @@
+:root {
+  --bg: #0F0F10;
+  --bg2: #1A1A1B;
+  --fg: #F2F2F2;
+  --fg-muted: #A0A0A0;
+  --fg-dim: #777;
+  --accent: #EF5466;
+  --accent-soft: rgba(239,84,102,0.12);
+  --line: #2A2A2A;
+  --radius: 16px;
+  --radius-sm: 10px;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, sans-serif;
+  font-size: 16px; }
+body { min-height: 100dvh; }
+
+/* --- Player shell (laptop) --- */
+.player-shell { display: flex; align-items: center; justify-content: center;
+  min-height: 100dvh; padding: 2rem; }
+.player-card { background: var(--bg2); border-radius: var(--radius);
+  padding: 2.5rem 2rem; text-align: center; max-width: 380px; width: 100%;
+  border: 1px solid var(--line); }
+.player-vinyl { font-size: 96px; color: var(--accent); display: block; margin: 0 auto 1rem; }
+.player-title { margin: 0; font-size: 18px; font-weight: 500; }
+.player-sub { margin: 4px 0 1.5rem; color: var(--fg-muted); font-size: 14px; }
+.player-hint { margin: 0; color: var(--fg-dim); font-size: 13px; }
+
+/* --- Controller shell (phone) --- */
+.controller-shell { padding: env(safe-area-inset-top, 12px) 16px 32px; max-width: 480px; margin: 0 auto; }
+.topbar { display: flex; justify-content: space-between; align-items: baseline; margin: 8px 4px 16px; }
+.topbar-title { font-weight: 600; font-size: 14px; letter-spacing: 0.5px; text-transform: uppercase; color: var(--fg-muted); }
+.topbar-status { font-size: 11px; color: var(--fg-dim); }
+
+.search { margin-bottom: 16px; }
+.search-input { width: 100%; padding: 12px 14px; border-radius: var(--radius-sm);
+  background: var(--bg2); border: 1px solid var(--line); color: var(--fg);
+  font-size: 16px; outline: none; }
+.search-input:focus { border-color: var(--accent); }
+
+.results { display: flex; flex-direction: column; gap: 8px; }
+.row { display: flex; align-items: center; gap: 12px; padding: 8px;
+  border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--bg2);
+  cursor: pointer; transition: background 0.15s; }
+.row:active { background: var(--accent-soft); }
+.row-cover { width: 48px; height: 48px; border-radius: 6px; background: var(--bg);
+  object-fit: cover; flex-shrink: 0; }
+.row-text { flex: 1; min-width: 0; }
+.row-title { margin: 0; font-size: 14px; font-weight: 500; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.row-sub { margin: 2px 0 0; font-size: 12px; color: var(--fg-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row-cta { font-size: 22px; color: var(--accent); }
+
+.now-playing { margin-top: 24px; text-align: center; }
+.np-cover { width: 100%; max-width: 280px; aspect-ratio: 1; border-radius: var(--radius);
+  margin: 0 auto 16px; object-fit: cover; background: var(--bg2); }
+.np-title { margin: 0; font-size: 18px; font-weight: 500; }
+.np-sub { margin: 4px 0 20px; font-size: 13px; color: var(--fg-muted); }
+
+.seek { margin: 0 0 16px; }
+.seek-bar { position: relative; height: 4px; background: var(--line); border-radius: 2px; cursor: pointer; }
+.seek-fill { position: absolute; left: 0; top: 0; height: 100%; background: var(--accent); border-radius: 2px; }
+.seek-knob { position: absolute; top: 50%; transform: translate(-50%, -50%); width: 12px;
+  height: 12px; background: var(--accent); border-radius: 50%; }
+.seek-labels { display: flex; justify-content: space-between; margin-top: 8px;
+  font-size: 12px; color: var(--fg-dim); font-variant-numeric: tabular-nums; }
+
+.transport { display: flex; align-items: center; justify-content: center; gap: 32px; margin: 8px 0 20px; }
+.transport button { background: none; border: 0; color: var(--fg); cursor: pointer; padding: 8px; }
+.t-skip i { font-size: 32px; }
+.t-main { background: var(--accent); border-radius: 50%; width: 64px; height: 64px;
+  display: flex; align-items: center; justify-content: center; color: white; }
+.t-main i { font-size: 28px; }
+
+.volume { display: flex; align-items: center; gap: 12px; }
+.volume i { font-size: 16px; color: var(--fg-dim); }
+.volume input[type=range] { flex: 1; accent-color: var(--fg); }
+
+.errors { position: fixed; bottom: 16px; left: 16px; right: 16px; display: flex;
+  flex-direction: column; gap: 8px; pointer-events: none; }
+.toast { background: var(--bg2); border: 1px solid var(--line); padding: 10px 14px;
+  border-radius: var(--radius-sm); font-size: 13px; }
+.toast.kind-auth_expired,
+.toast.kind-queue_exhausted { border-color: var(--accent); }
+
+/* Desktop-only adjustments for the controller shell. */
+@media (min-width: 700px) {
+  .controller-shell { padding-top: 24px; }
+}
