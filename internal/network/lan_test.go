@@ -30,19 +30,108 @@ func TestIsPrivateIPv4(t *testing.T) {
 	}
 }
 
-func TestLANAddrs_FiltersToPrivate(t *testing.T) {
-	in := []net.IP{
-		net.ParseIP("192.168.1.10"),
-		net.ParseIP("127.0.0.1"),
-		net.ParseIP("fe80::1"),
-		net.ParseIP("10.0.0.5"),
-		net.ParseIP("8.8.8.8"),
+func TestIsVirtualInterface(t *testing.T) {
+	virtual := []string{
+		"docker0",
+		"docker_gwbridge",
+		"br-0123456789ab",
+		"br-fedcba987654",
+		"veth1a2b3c",
+		"virbr0",
+		"virbr0-nic",
+		"vmnet1",
+		"vmnet8",
+		"vboxnet0",
+		"wsl0",
 	}
-	got := filterPrivateIPv4(in)
-	if len(got) != 2 {
-		t.Fatalf("got %d, want 2: %v", len(got), got)
+	real := []string{
+		"eth0",
+		"wlan0",
+		"eno1",
+		"enp0s31f6",
+		"wlp3s0",
+		"br0",   // user-configured bridge, not Docker
+		"lo",    // separately excluded as loopback
+		"wg0",   // wireguard — could be legitimate route
+		"tailscale0",
+		"tun0",
+		"tap0",
 	}
-	if got[0].String() != "192.168.1.10" || got[1].String() != "10.0.0.5" {
-		t.Errorf("filter = %v", got)
+	for _, n := range virtual {
+		if !isVirtualInterface(n) {
+			t.Errorf("isVirtualInterface(%q) = false, want true", n)
+		}
+	}
+	for _, n := range real {
+		if isVirtualInterface(n) {
+			t.Errorf("isVirtualInterface(%q) = true, want false", n)
+		}
+	}
+}
+
+func TestFilterLANCandidates(t *testing.T) {
+	cases := []struct {
+		name string
+		in   []candidate
+		want []string
+	}{
+		{
+			"skips docker bridges and virbr, keeps physical interface",
+			[]candidate{
+				{name: "wlan0", ip: net.ParseIP("192.168.1.42")},
+				{name: "docker0", ip: net.ParseIP("172.17.0.1")},
+				{name: "br-0123456789ab", ip: net.ParseIP("172.18.0.1")},
+				{name: "br-fedcba987654", ip: net.ParseIP("172.19.0.1")},
+				{name: "virbr0", ip: net.ParseIP("192.168.122.1")},
+			},
+			[]string{"192.168.1.42"},
+		},
+		{
+			"drops non-RFC1918 addresses",
+			[]candidate{
+				{name: "eth0", ip: net.ParseIP("8.8.8.8")},
+				{name: "eth0", ip: net.ParseIP("10.0.0.5")},
+			},
+			[]string{"10.0.0.5"},
+		},
+		{
+			"keeps bare br0 (user bridge, not Docker pattern)",
+			[]candidate{
+				{name: "br0", ip: net.ParseIP("192.168.1.10")},
+			},
+			[]string{"192.168.1.10"},
+		},
+		{
+			"filters veth, vmnet, vboxnet, wsl across mixed candidates",
+			[]candidate{
+				{name: "veth1a2b", ip: net.ParseIP("10.0.5.1")},
+				{name: "vmnet8", ip: net.ParseIP("192.168.140.1")},
+				{name: "vboxnet0", ip: net.ParseIP("192.168.56.1")},
+				{name: "wsl0", ip: net.ParseIP("172.20.0.1")},
+				{name: "eno1", ip: net.ParseIP("10.10.10.10")},
+			},
+			[]string{"10.10.10.10"},
+		},
+		{
+			"empty when only virtual interfaces have RFC1918 addresses",
+			[]candidate{
+				{name: "docker0", ip: net.ParseIP("172.17.0.1")},
+				{name: "virbr0", ip: net.ParseIP("192.168.122.1")},
+			},
+			nil,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := filterLANCandidates(tc.in)
+			if len(got) != len(tc.want) {
+				t.Fatalf("got %d addrs %v, want %d %v", len(got), got, len(tc.want), tc.want)
+			}
+			for i, ip := range got {
+				if ip.String() != tc.want[i] {
+					t.Errorf("got[%d] = %s, want %s", i, ip.String(), tc.want[i])
+				}
+			}
+		})
 	}
 }

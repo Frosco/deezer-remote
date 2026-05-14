@@ -36,6 +36,10 @@ talk over WebSocket.
   network must permit traffic between clients (most home networks do; many
   guest / "AP isolation" networks do not).
 - Port **8080** free on the laptop (configurable with `--port`).
+- On **Linux with firewalld** (default on EndeavourOS / Fedora / RHEL), the
+  `public` zone blocks 8080 by default. See *Phone can't reach the laptop* in
+  Troubleshooting for a recipe that opens 8080 only when you're on your home
+  Wi-Fi.
 
 ## Install
 
@@ -141,10 +145,43 @@ group-readable config. Run `chmod 0600 ~/.config/deezer-remote/config.toml`.
 **`authenticate with Deezer (arl)`** — Your `arl` is empty, malformed, or
 expired. Re-copy it from a fresh browser session.
 
-**Phone can't reach the laptop** — Confirm both are on the same SSID, and
-that the network isn't a guest network with client isolation. Many corporate
-and café Wi-Fi networks block client-to-client traffic. Run
-`deezer-remote doctor` — it will probe the LAN addresses.
+**Phone can't reach the laptop** — Three usual suspects, in the order they
+typically bite:
+
+1. *Useless candidate addresses in the QR list.* `serve` filters out
+   host-internal virtual bridges (`docker0`, `br-…`, `virbr0`, `vboxnet`,
+   `vmnet`, `wsl`, `veth`) automatically. If the QR shows your real LAN IP
+   (e.g. `192.168.x.y` from `ip -4 addr show`), move on.
+2. *Linux firewall drops inbound 8080.* On firewalld systems the default
+   `public` zone allows only `ssh` and `dhcpv6-client`. `deezer-remote doctor`
+   can't detect this — its TCP probe runs on the same host, which firewalld
+   doesn't block. Quick runtime test:
+   ```bash
+   sudo firewall-cmd --add-port=8080/tcp
+   ```
+   If the phone connects after that, make it permanent **only on your home
+   Wi-Fi** by creating a dedicated zone and binding it to your home NM
+   connection (replace `My Home Wi-Fi` with your SSID):
+   ```bash
+   sudo tee /etc/firewalld/zones/deezer-remote.xml > /dev/null <<'EOF'
+   <?xml version="1.0" encoding="utf-8"?>
+   <zone>
+     <short>deezer-remote</short>
+     <description>Home LAN: public posture plus deezer-remote 8080/tcp</description>
+     <service name="ssh"/>
+     <service name="dhcpv6-client"/>
+     <port port="8080" protocol="tcp"/>
+     <forward/>
+   </zone>
+   EOF
+   sudo firewall-cmd --reload
+   sudo nmcli connection modify "My Home Wi-Fi" connection.zone deezer-remote
+   sudo nmcli connection up "My Home Wi-Fi"
+   ```
+   On any other Wi-Fi profile, wlan0 stays in `public` and 8080 stays closed.
+3. *Network blocks client-to-client traffic.* Guest networks and many
+   corporate / café Wi-Fis isolate clients from each other. There is no
+   software fix for this on the laptop — use a different network.
 
 **Audio doesn't start in the laptop tab** — Browsers block autoplay until
 you interact with the page. Click anywhere in the player tab once.
