@@ -314,3 +314,11 @@ Browser audio playback automation (Playwright + `<audio>` is flaky and slow). FL
 - [x] Spike: implement `cmd/spike/main.go` and write the findings note back into this doc.
 - [x] Write the Phase 1 implementation plan (writing-plans skill).
 - [x] Implement Phase 1 (this plan).
+
+## Known follow-ups (post Phase 1, 2026-05-14)
+
+Surfaced by the cross-cutting review after all 29 implementation tasks landed. None block shipping Phase 1; track here until the project grows enough to need a real tracker.
+
+- [ ] **Layering exception for `internal/media/integration_test.go`.** The live integration test imports `internal/gateway` to set up the arl-auth → song.getData → media.getUrl pipeline against a stable public track. Production code in `internal/media` is gateway-free, so the strict-layering rule still holds for shipped binaries — but the test file is the one place the rule bends. Either explicitly document this exemption in the spec's "Code organisation" section, or move the test to a sibling `test/integration/` package so the dependency is unambiguous. Low priority — only matters if a future contributor reads the layering rule strictly.
+- [ ] **Dead error-kind constants.** `transport.ErrKindPlayerGone` and `transport.ErrKindRegionLocked` are declared in `internal/transport/messages.go` but never emitted from any code path. They're part of the documented wire contract per the spec's "Error handling" table, so removal is wrong — but the spec's listed semantics (player disconnect heartbeat → `player_gone`; geo-block → `region_locked`) aren't wired up yet. Either wire them up (heartbeat-driven `player_gone` in `transport.Hub`, region-aware error mapping in `transport.api.writeGatewayError` once `gateway` classifies region errors), or trim the spec table to match the implemented surface.
+- [ ] **Manual browser smoke test on the actual laptop.** The spec's "Manual smoke test plan" (cold pair, search → play, transport from phone, close-and-reopen player, `doctor` green) was deferred from Task 29 because it requires a real arl, a real LAN, a real phone. Run through it once on Nils's setup; record anything unexpected as a fresh follow-up here (don't patch in the same pass).
