@@ -7,6 +7,11 @@ import { ws } from "./ws.js";
 export function appRoot() {
   return {
     role: detectRole(),
+    audioUnlocked: false,
+    unlockAudio() {
+      document.dispatchEvent(new CustomEvent("player-unlock"));
+      this.audioUnlocked = true;
+    },
     search: {
       q: "",
       tracks: [],

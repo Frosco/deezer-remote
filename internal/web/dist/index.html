@@ -19,7 +19,10 @@
       <i class="ti ti-vinyl player-vinyl" aria-hidden="true"></i>
       <p class="player-title" x-text="$store.session.current?.title || 'Waiting for a track…'"></p>
       <p class="player-sub"   x-text="$store.session.current?.artist || ''"></p>
-      <p class="player-hint">Use your phone to control playback.</p>
+      <button class="player-unlock" @click="unlockAudio()" x-show="!audioUnlocked">
+        Tap to enable audio
+      </button>
+      <p class="player-hint" x-show="audioUnlocked">Use your phone to control playback.</p>
     </section>
   </main>
 
