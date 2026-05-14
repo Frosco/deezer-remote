@@ -85,23 +85,35 @@ chmod 0600 ~/.config/deezer-remote/config.toml
 ```
 
 The `bearer_token` line will be added automatically the first time you run
-`pair` or `serve` — do not write it yourself.
+`serve` — do not write it yourself.
 
-## First-time pairing
+## Run it
 
 ```bash
-./deezer-remote pair
+./deezer-remote serve
 ```
 
-This:
+On first run this:
 
-1. Generates a 32-byte bearer token (stored in `config.toml`).
-2. Prints a **player URL** for the laptop (e.g. `http://localhost:8080/?t=...`).
-3. Prints one or more **phone URLs** for each detected LAN interface, each
-   with a QR code in the terminal.
+1. Generates a 32-byte bearer token and writes it to `config.toml`.
+2. Authenticates against Deezer with your `arl`.
+3. Starts the HTTP + WebSocket server on `0.0.0.0:8080`.
+4. Prints a **player URL** for the laptop (e.g. `http://localhost:8080/?t=...`)
+   and one or more **phone URLs** for each detected LAN interface, each with
+   a QR code in the terminal.
 
-Scan the phone QR with your phone's camera. The bearer token is in the URL,
-so the phone is paired the moment you open the link.
+Open:
+
+- The **player URL** on the laptop (this tab is the audio output — keep it
+  open, keep its volume up).
+- The **phone URL** on your phone (this is the remote). Scan the QR with
+  your phone's camera; the bearer token is in the URL, so the phone is
+  paired the moment you open the link.
+
+Search and queue tracks from the phone; the laptop plays them.
+
+Stop with `Ctrl-C`. Subsequent runs of `serve` reuse the same token, so the
+phone stays paired across restarts.
 
 If you ever leak the token or want to un-pair a device, rotate it:
 
@@ -109,31 +121,14 @@ If you ever leak the token or want to un-pair a device, rotate it:
 ./deezer-remote pair --reset
 ```
 
-All previously paired devices will need to re-scan.
-
-## Daily use
-
-```bash
-./deezer-remote serve
-```
-
-This starts the HTTP + WebSocket server on `0.0.0.0:8080`, authenticates
-against Deezer with your `arl`, and reprints the player + phone URLs. Open:
-
-- The **player URL** on the laptop (this tab is the audio output — keep it
-  open, keep its volume up).
-- The **phone URL** on your phone (this is the remote).
-
-Search and queue tracks from the phone; the laptop plays them.
-
-Stop with `Ctrl-C`.
+All previously paired devices will need to re-scan the new QR.
 
 ## Commands
 
 | Command | Purpose |
 |---|---|
 | `deezer-remote serve` | Start the service. Add `--port 9000` to change the port, `--bind 127.0.0.1` to restrict to localhost. |
-| `deezer-remote pair` | Print player + phone URLs and the QR for the current bearer token. |
+| `deezer-remote pair` | Reprint the player + phone URLs and QR for the current bearer token, without starting the server. Handy if the `serve` output has scrolled away. |
 | `deezer-remote pair --reset` | Rotate the bearer token, then print the new URLs. Invalidates all previously paired phones. |
 | `deezer-remote doctor` | Run end-to-end self-checks: config readable, `arl` authenticates, port can bind, LAN reachable, a real track streams. Use this first when something is broken. |
 
