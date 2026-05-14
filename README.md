@@ -179,7 +179,7 @@ typically bite:
    software fix for this on the laptop — use a different network.
 
 **Audio doesn't start in the laptop tab** — Browsers block autoplay until
-you interact with the page. Click anywhere in the player tab once.
+you interact with the page. Click on the button (or anywhere in the player tab).
 
 **`Invalid CSRF token`** in logs — Transient; the gateway client refreshes
 and retries automatically. If it persists, your `arl` is probably stale.
